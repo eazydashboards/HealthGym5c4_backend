@@ -1,0 +1,29 @@
+{
+  "name": "gym-management-server",
+  "version": "1.0.0",
+  "description": "Gym Management System REST API",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "seed": "node src/seed.js"
+  },
+  "keywords": [
+    "gym",
+    "management",
+    "express",
+    "mongodb",
+    "fitness"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^5.0.1",
+    "firebase-admin": "^14.5.0",
+    "jsonwebtoken": "^9.0.2"
+  }
+}
