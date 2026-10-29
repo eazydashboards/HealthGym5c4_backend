@@ -21,13 +21,23 @@ const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:3000",
   "http://localhost:5000",
+  "https://eazy-dashboard.vercel.app",
   process.env.CLIENT_URL,
 ].filter(Boolean);
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== "production") {
+      // Allow requests with no origin (like mobile apps, curl, or Postman)
+      if (!origin) return callback(null, true);
+
+      // Check explicit allowed origins or any vercel.app preview/production deployment
+      const isAllowed =
+        allowedOrigins.includes(origin) ||
+        origin.endsWith(".vercel.app") ||
+        process.env.NODE_ENV !== "production";
+
+      if (isAllowed) {
         return callback(null, true);
       }
       return callback(new Error("Not allowed by CORS"), false);
