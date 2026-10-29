@@ -44,7 +44,8 @@ export const getAnalytics = async (req, res, next) => {
         Array.isArray(p.months) &&
         p.months.includes(queryMonth)
       ) {
-        monthlyFeeRevenue += Number(p.amount) || 0;
+        const monthCount = p.months.length || 1;
+        monthlyFeeRevenue += Math.round((Number(p.amount) || 0) / monthCount);
         thisMonthPaidPayments.push(p);
       }
     });
@@ -114,16 +115,20 @@ export const getAnalytics = async (req, res, next) => {
 
     allPayments.forEach((p) => {
       const pDate = new Date(p.paymentDate || p.createdAt);
-      const isThisMonth =
-        (p.type === "monthly" && Number(p.year) === queryYear && p.months?.includes(queryMonth)) ||
-        ((p.type === "card" || p.type === "registration") && pDate >= startOfMonth && pDate <= endOfMonth);
+      const isMonthlyMatch = p.type === "monthly" && Number(p.year) === queryYear && p.months?.includes(queryMonth);
+      const isOtherMatch = (p.type === "card" || p.type === "registration") && pDate >= startOfMonth && pDate <= endOfMonth;
 
-      if (isThisMonth) {
+      if (isMonthlyMatch || isOtherMatch) {
         const m = p.method || "Cash";
+        let amt = Number(p.amount) || 0;
+        if (isMonthlyMatch && Array.isArray(p.months) && p.months.length > 1) {
+          amt = Math.round(amt / p.months.length);
+        }
+
         if (methodTotals[m] !== undefined) {
-          methodTotals[m] += Number(p.amount) || 0;
+          methodTotals[m] += amt;
         } else {
-          methodTotals["Other Online"] += Number(p.amount) || 0;
+          methodTotals["Other Online"] += amt;
         }
       }
     });
@@ -184,7 +189,8 @@ export const getAnalytics = async (req, res, next) => {
       let rev = 0;
       allPayments.forEach((p) => {
         if (p.type === "monthly" && Number(p.year) === queryYear && p.months?.includes(m)) {
-          rev += Number(p.amount) || 0;
+          const mCount = Array.isArray(p.months) && p.months.length > 1 ? p.months.length : 1;
+          rev += Math.round((Number(p.amount) || 0) / mCount);
         } else if (p.type === "card" || p.type === "registration") {
           const pD = new Date(p.paymentDate || p.createdAt);
           if (pD >= mStart && pD <= mEnd) rev += Number(p.amount) || 0;

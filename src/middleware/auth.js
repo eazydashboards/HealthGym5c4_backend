@@ -22,7 +22,10 @@ export const protect = async (req, res, next) => {
       });
     }
 
-    const secret = process.env.JWT_SECRET || "health_gym_jwt_secret_key_2026_xyz";
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      throw new Error("JWT_SECRET environment variable is not set");
+    }
     const decoded = jwt.verify(token, secret);
 
     // Hardcoded owner check
