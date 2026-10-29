@@ -1,6 +1,7 @@
 import { db } from "../config/firebase.js";
 import { recordActivity } from "../utils/logger.js";
 import { getOrCreateSettings } from "./settingsController.js";
+import { uploadMemberPhoto } from "../config/cloudinary.js";
 
 // Helper to calculate unpaid months for a member
 export const calculateMemberDues = (
@@ -122,9 +123,20 @@ export const createMember = async (req, res, next) => {
       regFee = settings.defaultRegistrationFee !== undefined ? Number(settings.defaultRegistrationFee) : 1000;
     }
 
+    // Upload member photo to Cloudinary if provided
+    let photoUrl = "";
+    if (req.body.photo) {
+      try {
+        photoUrl = (await uploadMemberPhoto(req.body.photo, cleanRegNo)) || "";
+      } catch (uploadErr) {
+        console.error("Cloudinary upload error on member create:", uploadErr.message);
+      }
+    }
+
     const memberData = {
       name: name.trim(),
       regNo: cleanRegNo,
+      photoUrl,
       joiningDate: joiningDate || new Date().toISOString(),
       fatherName: fatherName ? fatherName.trim() : "",
       address: address ? address.trim() : "",
@@ -321,7 +333,7 @@ export const getMemberById = async (req, res, next) => {
 // PUT /api/members/:id
 export const updateMember = async (req, res, next) => {
   try {
-    const { name, fatherName, address, mobile, monthlyFee, status, joiningDate } = req.body;
+    const { name, fatherName, address, mobile, monthlyFee, status, joiningDate, photo } = req.body;
     const ref = db.collection("members").doc(req.params.id);
     const doc = await ref.get();
 
@@ -330,6 +342,18 @@ export const updateMember = async (req, res, next) => {
     }
 
     const current = doc.data();
+
+    // Upload new photo to Cloudinary if provided as base64
+    let photoUrl = current.photoUrl || "";
+    if (photo && photo.startsWith("data:image/")) {
+      try {
+        const uploaded = await uploadMemberPhoto(photo, current.regNo);
+        if (uploaded) photoUrl = uploaded;
+      } catch (uploadErr) {
+        console.error("Cloudinary upload error on member update:", uploadErr.message);
+      }
+    }
+
     const updateData = {
       name: name ? name.trim() : current.name,
       fatherName: fatherName !== undefined ? fatherName.trim() : current.fatherName,
@@ -338,6 +362,7 @@ export const updateMember = async (req, res, next) => {
       monthlyFee: monthlyFee !== undefined ? Number(monthlyFee) : current.monthlyFee,
       status: status || current.status,
       joiningDate: joiningDate || current.joiningDate,
+      photoUrl,
       handleBy: req.user.name,
       updatedAt: new Date().toISOString(),
     };
