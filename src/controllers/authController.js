@@ -9,14 +9,16 @@ export const HARDCODED_OWNER = {
   name: "Health Gym Owner",
   email: "admin@gmail.com",
   username: "admin",
-  password: "admin123",
+  password: process.env.Admin_Password,
   role: "owner",
 };
 
 const generateToken = (id, role, name) => {
-  const secret = process.env.JWT_SECRET || "health_gym_jwt_secret_key_2026_xyz";
+
+  const secret = process.env.JWT_SECRET;
+  if (!secret) throw new Error("JWT_SECRET environment variable is not set");
   return jwt.sign({ id, role, name }, secret, {
-    expiresIn: "30d",
+    expiresIn: "1d",
   });
 };
 
@@ -34,10 +36,18 @@ export const login = async (req, res, next) => {
     const cleanInput = username.trim().toLowerCase();
     const cleanPassword = password.trim();
 
-    // 1. CHECK HARDCODED OWNER CREDENTIALS FIRST
-    const isOwner =
-      (cleanInput === HARDCODED_OWNER.email || cleanInput === HARDCODED_OWNER.username) &&
-      cleanPassword === HARDCODED_OWNER.password;
+    // // 1. CHECK HARDCODED OWNER CREDENTIALS FIRST
+    // const isOwner =
+    //   (cleanInput === HARDCODED_OWNER.email || cleanInput === HARDCODED_OWNER.username) &&
+    //   cleanPassword === HARDCODED_OWNER.password;
+
+    // ✅ NAYA (bcrypt compare)
+    const ownerEmailMatch =
+      cleanInput === HARDCODED_OWNER.email ||
+      cleanInput === HARDCODED_OWNER.username;
+
+    const isOwner = ownerEmailMatch &&
+      await bcrypt.compare(cleanPassword, HARDCODED_OWNER.password);
 
     if (isOwner) {
       const token = generateToken(HARDCODED_OWNER.id, "owner", HARDCODED_OWNER.name);
