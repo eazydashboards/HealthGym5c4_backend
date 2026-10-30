@@ -18,8 +18,8 @@ export const uploadMemberPhoto = async (base64Data, memberRegNo = "member") => {
     folder: "health_gym_members",
     public_id: `${memberRegNo.toLowerCase()}_${Date.now()}`,
     transformation: [
-      { width: 500, height: 500, crop: "fill", gravity: "face" },
-      { quality: "auto", fetch_format: "auto" },
+      { width: 350, height: 350, crop: "fill", gravity: "face" },
+      { quality: "auto:eco", fetch_format: "auto" },
     ],
   });
 
