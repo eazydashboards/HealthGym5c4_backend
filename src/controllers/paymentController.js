@@ -115,7 +115,7 @@ export const createPayment = async (req, res, next) => {
 // GET /api/payments
 export const getPayments = async (req, res, next) => {
   try {
-    const { memberId, year, type } = req.query;
+    const { memberId, year, type, date, startDate, endDate } = req.query;
     let query = db.collection("payments");
 
     if (memberId) query = query.where("member", "==", memberId);
@@ -128,12 +128,91 @@ export const getPayments = async (req, res, next) => {
       payments.push({ _id: doc.id, id: doc.id, ...doc.data() });
     });
 
+    // Filter by specific single date (YYYY-MM-DD)
+    if (date) {
+      payments = payments.filter((p) => {
+        const pDateStr = (p.paymentDate || p.createdAt || "").split("T")[0];
+        return pDateStr === date;
+      });
+    }
+
+    // Filter by date range (startDate to endDate)
+    if (startDate) {
+      payments = payments.filter((p) => {
+        const pDateStr = (p.paymentDate || p.createdAt || "").split("T")[0];
+        return pDateStr >= startDate;
+      });
+    }
+    if (endDate) {
+      payments = payments.filter((p) => {
+        const pDateStr = (p.paymentDate || p.createdAt || "").split("T")[0];
+        return pDateStr <= endDate;
+      });
+    }
+
     payments.sort((a, b) => new Date(b.paymentDate || b.createdAt) - new Date(a.paymentDate || a.createdAt));
+
+    // Calculate totals for quick summary
+    const totalAmount = payments.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+    const byMethod = payments.reduce((acc, curr) => {
+      const m = curr.method || "Cash";
+      acc[m] = (acc[m] || 0) + (Number(curr.amount) || 0);
+      return acc;
+    }, {});
 
     res.json({
       success: true,
       count: payments.length,
+      totalAmount,
+      byMethod,
       payments,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /api/payments/daily-summary
+export const getDailyPaymentSummary = async (req, res, next) => {
+  try {
+    const targetDateStr = req.query.date || new Date().toISOString().split("T")[0];
+
+    const snap = await db.collection("payments").get();
+    let dayPayments = [];
+
+    snap.forEach((doc) => {
+      const p = { _id: doc.id, id: doc.id, ...doc.data() };
+      const pDateStr = (p.paymentDate || p.createdAt || "").split("T")[0];
+      if (pDateStr === targetDateStr) {
+        dayPayments.push(p);
+      }
+    });
+
+    dayPayments.sort((a, b) => new Date(b.paymentDate || b.createdAt) - new Date(a.paymentDate || a.createdAt));
+
+    const totalRevenue = dayPayments.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+    const cashTotal = dayPayments
+      .filter((p) => (p.method || "").toLowerCase() === "cash")
+      .reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+    const onlineTotal = totalRevenue - cashTotal;
+
+    const monthlyCount = dayPayments.filter((p) => p.type === "monthly").length;
+    const regCount = dayPayments.filter((p) => p.type === "registration").length;
+    const cardCount = dayPayments.filter((p) => p.type === "card").length;
+
+    res.json({
+      success: true,
+      date: targetDateStr,
+      totalRevenue,
+      cashTotal,
+      onlineTotal,
+      totalTransactions: dayPayments.length,
+      breakdown: {
+        monthlyCount,
+        regCount,
+        cardCount,
+      },
+      payments: dayPayments,
     });
   } catch (error) {
     next(error);

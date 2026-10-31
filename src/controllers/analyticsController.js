@@ -210,6 +210,27 @@ export const getAnalytics = async (req, res, next) => {
       });
     }
 
+    // Today's revenue and collection count calculation
+    const todayDateStr = now.toISOString().split("T")[0];
+    let todayRevenue = 0;
+    let todayCash = 0;
+    let todayOnline = 0;
+    let todayPaymentsCount = 0;
+
+    allPayments.forEach((p) => {
+      const pDateStr = (p.paymentDate || p.createdAt || "").split("T")[0];
+      if (pDateStr === todayDateStr) {
+        const amt = Number(p.amount) || 0;
+        todayRevenue += amt;
+        todayPaymentsCount += 1;
+        if ((p.method || "").toLowerCase() === "cash") {
+          todayCash += amt;
+        } else {
+          todayOnline += amt;
+        }
+      }
+    });
+
     res.json({
       success: true,
       selectedYear: queryYear,
@@ -219,6 +240,11 @@ export const getAnalytics = async (req, res, next) => {
         activeMembers,
         inactiveMembers: totalMembers - activeMembers,
         newMembersCount: newMembersThisMonthList.length,
+        // Today's metrics
+        todayRevenue,
+        todayCash,
+        todayOnline,
+        todayPaymentsCount,
         // Monthly queried stats
         monthlyFeeRevenue,
         cardRevenue,
